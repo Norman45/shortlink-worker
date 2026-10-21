@@ -6,7 +6,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "shortlink-db",
+      "database_name": "shortlink",
       "database_id": "41e353b8-57c2-4b16-9abd-b587012227ec"
     }
   ],
