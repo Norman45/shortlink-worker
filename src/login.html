@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>管理员登录</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f5f5f7;color:#111;font-family:system-ui,-apple-system,sans-serif}
+.wrap{max-width:360px;margin:80px auto;padding:0 16px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+h1{font-size:18px;margin:0 0 16px}
+label{display:block;font-size:13px;margin:10px 0 4px;color:#555}
+input{width:100%;padding:10px;border:1px solid #d0d0d5;border-radius:8px;font-size:14px}
+button{margin-top:12px;width:100%;padding:10px;border:none;border-radius:8px;background:#000;color:#fff;font-size:14px;cursor:pointer}
+button:hover{opacity:.9}
+.msg{margin-top:10px;font-size:13px;color:#d32f2f}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>管理员登录</h1>
+    <form id="loginForm">
+      <label>密码</label>
+      <input id="pwd" type="password" placeholder="请输入管理员密码" />
+      <button type="submit">登录</button>
+      <div id="msg" class="msg"></div>
+    </form>
+  </div>
+</div>
+<script>
+document.getElementById("loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const pwd = document.getElementById("pwd").value;
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: pwd })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    location.href = "/admin";
+  } else {
+    document.getElementById("msg").textContent = "密码错误";
+  }
+};
+</script>
+</body>
+</html>
