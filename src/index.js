@@ -184,7 +184,7 @@ export default {
       const row = results[0];
       const targets = row.targets.split(",").map((t) => t.trim()).filter(Boolean);
       if (targets.length === 0) {
-        return new Response("No targets", { status: 500);
+        return new Response("No targets", { status: 500 });
       }
 
       let index = Number(row.idx ?? 0);
