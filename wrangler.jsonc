@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shortlink-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-19",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shortlink-db",
+      "database_id": "41e353b8-57c2-4b16-9abd-b587012227ec"
+    }
+  ],
+  "assets": {
+    "directory": "src"
+  }
+}
