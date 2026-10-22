@@ -1809,6 +1809,22 @@
 
         });
     </script>
+
+    <script>
+        // 生成随机 6 位短链名（迁移自 index.js：此处为浏览器端，document 可用）
+        function random6Letter() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+            let res = "";
+            for (let i = 0; i < 6; i++) {
+                res += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return res;
+        }
+
+        document.getElementById("newPathBtn").addEventListener("click", function () {
+            document.getElementById("newPath").value = random6Letter();
+        });
+    </script>
 </body>
 
 </html>
