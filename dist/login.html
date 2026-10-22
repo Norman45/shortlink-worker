@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html data-theme="light">
+
+<head>
+    <script>
+        // 在页面渲染前就设置主题
+        (function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'system') {
+                // 跟随系统设置
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            } else if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else {
+                // 默认跟随系统
+                localStorage.setItem('theme', 'system');
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            }
+        })();
+    </script>
+    <title>登录</title>
+    <meta charset="UTF-8">
+    <meta name="darkreader-lock">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="/daisyui@5.css" rel="stylesheet" type="text/css" />
+    <script src="/tailwindcss@4.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            /* 防止横向滚动 */
+        }
+    </style>
+    <script>
+        // 在开头添加主题切换相关函数
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = localStorage.getItem('theme') || 'system';
+            let newTheme;
+
+            // 循环切换：system -> light -> dark -> system
+            switch (currentTheme) {
+                case 'system':
+                    newTheme = 'light';
+                    break;
+                case 'light':
+                    newTheme = 'dark';
+                    break;
+                case 'dark':
+                    newTheme = 'system';
+                    break;
+                default:
+                    newTheme = 'system';
+            }
+
+            localStorage.setItem('theme', newTheme);
+
+            // 设置实际主题
+            if (newTheme === 'system') {
+                const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                html.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            } else {
+                html.setAttribute('data-theme', newTheme);
+            }
+
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const iconPath = document.querySelector('#themeToggleBtn path');
+            switch (theme) {
+                case 'system':
+                    // 显示系统图标（电脑显示器）
+                    iconPath.setAttribute('d', 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z');
+                    break;
+                case 'dark':
+                    // 显示月亮图标
+                    iconPath.setAttribute('d', 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z');
+                    break;
+                case 'light':
+                    // 显示太阳图标
+                    iconPath.setAttribute('d', 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z');
+                    break;
+            }
+        }
+
+        // 添加系统主题变化监听
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (localStorage.getItem('theme') === 'system') {
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            }
+        });
+
+        // 初始化主题图标
+        document.addEventListener('DOMContentLoaded', () => {
+            updateThemeIcon(localStorage.getItem('theme') || 'system');
+            document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+        });
+    </script>
+</head>
+
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+    <div class="absolute top-4 right-4">
+        <div class="tooltip tooltip-left" data-tip="切换主题">
+            <button id="themeToggleBtn" class="btn btn-ghost btn-circle">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+    <main class="flex-1 flex items-center justify-center px-4 w-full">
+        <div class="card w-[90%] max-w-96 bg-base-100 shadow-xl">
+            <div class="card-body p-6 md:p-8">
+                <h1 class="card-title text-xl md:text-2xl justify-center mb-6">登录</h1>
+                <div class="form-control w-full">
+                    <input type="password" id="password" placeholder="请输入管理密码"
+                        class="input input-bordered w-full text-base md:text-lg h-11 md:h-12"
+                        autocomplete="current-password">
+                    <div class="flex flex-col gap-2 mt-6">
+                        <button onclick="login()" id="li" class="btn btn-primary h-11 md:h-12 text-base md:text-lg w-full">
+                            登 录
+                        </button>
+                    </div>
+                    <div id="error" class="alert alert-error mt-4" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>密码错误，请重试</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+
+    <script>
+        let limit = 0;
+        async function login() {
+            const password = document.getElementById('password').value;
+            const error = document.getElementById('error');
+            const button = document.querySelector('button');
+            const button2 = document.getElementById('li');
+
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="loading loading-spinner"></span>
+                登录中...
+            `;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                if (response.ok) {
+                    button.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        登录成功
+                    `;
+                    window.location.href = '/admin';
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    error.querySelector('span').textContent = data.error || '密码错误，请重试';
+                    error.style.display = 'flex';
+                    button.disabled = false;
+                    button.textContent = '登 录';
+                    limit = limit + 1;
+                    if (limit > 5) {
+                        alert("密码输错次数超过5次，禁止登录");
+                        button2.textContent = '禁 止 登 录';
+                        button2.disabled = true;
+                    }
+                }
+            } catch (e) {
+                error.querySelector('span').textContent = '网络错误，请稍后重试';
+                error.style.display = 'flex';
+                button.disabled = false;
+                button.textContent = '登 录';
+            }
+        }
+
+        document.getElementById('password').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+
+        // 自动聚焦密码输入框
+        document.getElementById('password').focus();
+    </script>
+</body>
+
+</html>
