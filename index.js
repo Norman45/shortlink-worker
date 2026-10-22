@@ -18,8 +18,8 @@ function random6Letter() {
    }
    return res;
  }
- document.getElementById("newpathBtn").addEventListener("click", function(){
-   document.getElementById("newpath").value = random6Letter();
+ document.getElementById("newPathBtn").addEventListener("click", function(){
+   document.getElementById("newPath").value = random6Letter();
  });
 
 // 解析多链接：支持数组 / JSON 数组字符串 / 换行或逗号分隔字符串
