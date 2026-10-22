@@ -10,18 +10,6 @@ const banPath = [
   'favicon.svg',
 ];
 
-function random6Letter() {
-   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-   let res = "";
-   for(let i=0;i<6;i++){
-     res += chars[Math.floor(Math.random() * chars.length)];
-   }
-   return res;
- }
- document.getElementById("newPathBtn").addEventListener("click", function(){
-   document.getElementById("newPath").value = random6Letter();
- });
-
 // 解析多链接：支持数组 / JSON 数组字符串 / 换行或逗号分隔字符串
 function parseTargets(raw) {
   if (!raw) return [];
@@ -824,3 +812,15 @@ export default {
   },
 
 };
+
+function random6Letter() {
+   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+   let res = "";
+   for(let i=0;i<6;i++){
+     res += chars[Math.floor(Math.random() * chars.length)];
+   }
+   return res;
+ }
+ document.getElementById("newPathBtn").addEventListener("click", function(){
+   document.getElementById("newPath").value = random6Letter();
+ });
