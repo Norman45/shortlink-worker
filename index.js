@@ -10,55 +10,19 @@ const banPath = [
   'favicon.svg',
 ];
 
-// 解析多链接存储数据 → 纯 URL 数组。
-// 兼容两种存储结构：
-//   1) 纯 URL 数组：["https://a","https://b"]
-//   2) 旧版 {url,weight} 数组：[{"url":"https://a","weight":2},...]（取 url，忽略 weight）
-//   3) JSON 数组字符串 / 换行或逗号分隔字符串
+// 解析多链接：支持数组 / JSON 数组字符串 / 换行或逗号分隔字符串
 function parseTargets(raw) {
-  let arr;
+  if (!raw) return [];
   if (Array.isArray(raw)) {
-    arr = raw;
-  } else if (!raw) {
-    return [];
-  } else {
-    try {
-      arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) arr = String(raw).split(/[\r\n,]+/);
-    } catch (e) {
-      arr = String(raw).split(/[\r\n,]+/);
+    return raw.map(t => String(t).trim()).filter(Boolean);
+  }
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) {
+      return arr.map(t => String(t).trim()).filter(Boolean);
     }
-  }
-
-  const out = [];
-  for (const item of arr) {
-    if (item === null || item === undefined) continue;
-    if (typeof item === 'object') {
-      const url = String(item.url || '').trim();
-      if (url) out.push(url);
-    } else {
-      const url = String(item).trim();
-      if (url) out.push(url);
-    }
-  }
-  return out;
-}
-
-// 解析用户输入的多行文本 → 纯 URL 数组（每行一个链接）
-function parseTargetLines(text) {
-  if (!text) return [];
-  const out = [];
-  for (const line of String(text).split(/[\r\n]+/)) {
-    const t = line.trim();
-    if (t) out.push(t);
-  }
-  return out;
-}
-
-// 目标列表 → 展示文本（多行，每行一个 URL）
-function targetsToText(targets) {
-  if (!targets || targets.length === 0) return '';
-  return targets.join('\n');
+  } catch (e) { /* 非 JSON，继续往下解析 */ }
+  return String(raw).split(/[\r\n,]+/).map(t => t.trim()).filter(Boolean);
 }
 
 // 数据库初始化
@@ -103,35 +67,11 @@ async function initDatabase() {
     `).run();
   }
 
-  // 添加 idx 列（当前链接游标）
+  // 添加 idx 列（轮询游标）
   if (!columns.includes('idx')) {
     await DB.prepare(`
       ALTER TABLE mappings 
       ADD COLUMN idx INTEGER DEFAULT 0
-    `).run();
-  }
-
-  // 添加 count 列（当前链接已接待访问次数）
-  if (!columns.includes('count')) {
-    await DB.prepare(`
-      ALTER TABLE mappings 
-      ADD COLUMN count INTEGER DEFAULT 0
-    `).run();
-  }
-
-  // 添加 mode 列（切换方式：random 随机 / count 按次数）
-  if (!columns.includes('mode')) {
-    await DB.prepare(`
-      ALTER TABLE mappings 
-      ADD COLUMN mode TEXT DEFAULT 'random'
-    `).run();
-  }
-
-  // 添加 threshold 列（按次数模式：每个链接接待 N 次后切换）
-  if (!columns.includes('threshold')) {
-    await DB.prepare(`
-      ALTER TABLE mappings 
-      ADD COLUMN threshold INTEGER DEFAULT 1
     `).run();
   }
 
@@ -208,9 +148,6 @@ async function listMappings(page = 1, pageSize = 10) {
       target: row.target,
       targets: parseTargets(row.targets || row.target),
       idx: row.idx || 0,
-      count: row.count || 0,
-      mode: row.mode || 'random',
-      threshold: row.threshold || 1,
       name: row.name,
       expiry: row.expiry,
       enabled: row.enabled === 1,
@@ -229,13 +166,12 @@ async function listMappings(page = 1, pageSize = 10) {
 }
 
 // target 参数：单链接或多链接（数组 / 多行字符串），统一转为多链接数组存储
-// mode: 'random'(随机) 或 'count'(按次数)；threshold: 按次数模式每个链接接待 N 次后切换
-async function createMapping(path, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null, mode = 'random', threshold = 1) {
+async function createMapping(path, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
   if (!path || typeof path !== 'string') {
     throw new Error('Invalid input');
   }
 
-  const targets = parseTargetLines(target);
+  const targets = parseTargets(target);
   if (targets.length === 0) {
     throw new Error('Invalid input');
   }
@@ -254,19 +190,13 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
     throw new Error('微信二维码必须提供原始二维码数据');
   }
 
-  const m = (mode === 'count') ? 'count' : 'random';
-  const t = parseInt(threshold, 10);
-  const th = (Number.isFinite(t) && t > 0) ? t : 1;
-
   await DB.prepare(`
-    INSERT INTO mappings (path, target, targets, idx, count, mode, threshold, name, expiry, enabled, isWechat, qrCodeData)
-    VALUES (?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO mappings (path, target, targets, idx, name, expiry, enabled, isWechat, qrCodeData)
+    VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
   `).bind(
     path,
     targets[0],
     JSON.stringify(targets),
-    m,
-    th,
     name || null,
     expiry || null,
     enabled ? 1 : 0,
@@ -288,7 +218,7 @@ async function deleteMapping(path) {
   await DB.prepare('DELETE FROM mappings WHERE path = ?').bind(path).run();
 }
 
-async function updateMapping(originalPath, newPath, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null, mode = 'random', threshold = 1) {
+async function updateMapping(originalPath, newPath, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
   if (!originalPath || !newPath) {
     throw new Error('Invalid input');
   }
@@ -305,7 +235,7 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
   // 如果没有提供新的目标，保留原有的 targets
   let targets;
   if (target) {
-    targets = parseTargetLines(target);
+    targets = parseTargets(target);
     if (targets.length === 0) throw new Error('Invalid input');
   } else {
     const existingMapping = await DB.prepare(`
@@ -334,13 +264,9 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     throw new Error('微信二维码必须提供原始二维码数据');
   }
 
-  const m = (mode === 'count') ? 'count' : 'random';
-  const t = parseInt(threshold, 10);
-  const th = (Number.isFinite(t) && t > 0) ? t : 1;
-
   const stmt = DB.prepare(`
     UPDATE mappings 
-    SET path = ?, target = ?, targets = ?, idx = 0, count = 0, mode = ?, threshold = ?, name = ?, expiry = ?, enabled = ?, isWechat = ?, qrCodeData = ?
+    SET path = ?, target = ?, targets = ?, idx = 0, name = ?, expiry = ?, enabled = ?, isWechat = ?, qrCodeData = ?
     WHERE path = ?
   `);
 
@@ -348,8 +274,6 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     newPath,
     targets[0],
     JSON.stringify(targets),
-    m,
-    th,
     name || null,
     expiry || null,
     enabled ? 1 : 0,
@@ -380,7 +304,7 @@ async function getExpiringMappings() {
   const results = await DB.prepare(`
     WITH categorized_mappings AS (
       SELECT 
-        path, name, target, targets, idx, count, mode, threshold, expiry, enabled, isWechat, qrCodeData,
+        path, name, target, targets, idx, expiry, enabled, isWechat, qrCodeData,
         CASE 
           WHEN datetime(expiry) < datetime(?) THEN 'expired'
           WHEN datetime(expiry) <= datetime(?) THEN 'expiring'
@@ -406,9 +330,6 @@ async function getExpiringMappings() {
       target: row.target,
       targets: parseTargets(row.targets || row.target),
       idx: row.idx || 0,
-      count: row.count || 0,
-      mode: row.mode || 'random',
-      threshold: row.threshold || 1,
       expiry: row.expiry,
       enabled: row.enabled === 1,
       isWechat: row.isWechat === 1,
@@ -569,7 +490,7 @@ export default {
             }
 
             const mapping = await DB.prepare(`
-              SELECT path, target, targets, idx, count, mode, threshold, name, expiry, enabled, isWechat, qrCodeData
+              SELECT path, target, targets, idx, name, expiry, enabled, isWechat, qrCodeData
               FROM mappings
               WHERE path = ?
             `).bind(mappingPath).first();
@@ -583,10 +504,7 @@ export default {
             return new Response(JSON.stringify({
               ...mapping,
               targets: parseTargets(mapping.targets || mapping.target),
-              idx: mapping.idx || 0,
-              count: mapping.count || 0,
-              mode: mapping.mode || 'random',
-              threshold: mapping.threshold || 1
+              idx: mapping.idx || 0
             }), {
               headers: { 'Content-Type': 'application/json' }
             });
@@ -595,7 +513,7 @@ export default {
           // 创建映射
           if (request.method === 'POST') {
             const data = await request.json();
-            await createMapping(data.path, data.target, data.name, data.expiry, data.enabled, data.isWechat, data.qrCodeData, data.mode, data.threshold);
+            await createMapping(data.path, data.target, data.name, data.expiry, data.enabled, data.isWechat, data.qrCodeData);
             return new Response(JSON.stringify({ success: true }), {
               headers: { 'Content-Type': 'application/json' }
             });
@@ -612,9 +530,7 @@ export default {
               data.expiry,
               data.enabled,
               data.isWechat,
-              data.qrCodeData,
-              data.mode,
-              data.threshold
+              data.qrCodeData
             );
             return new Response(JSON.stringify({ success: true }), {
               headers: { 'Content-Type': 'application/json' }
@@ -647,7 +563,7 @@ export default {
     if (path) {
       try {
         const mapping = await DB.prepare(`
-          SELECT path, target, targets, idx, count, mode, threshold, name, expiry, enabled, isWechat, qrCodeData
+          SELECT path, target, targets, idx, name, expiry, enabled, isWechat, qrCodeData
           FROM mappings
           WHERE path = ?
         `).bind(path).first();
@@ -848,42 +764,23 @@ export default {
             });
           }
 
-          // ============ 多链接切换跳转（可配：随机 / 按次数） ============
+          // ============ 多链接轮询跳转（改造核心） ============
           const targets = parseTargets(mapping.targets || mapping.target);
           if (targets.length === 0) {
             return new Response('Not Found', { status: 404 });
           }
 
-          const mode = mapping.mode || 'random';
-          const threshold = (Number.isFinite(Number(mapping.threshold)) && Number(mapping.threshold) > 0) ? Number(mapping.threshold) : 1;
+          // 取当前游标对应的目标，并轮询到下一个
           let index = Number(mapping.idx ?? 0);
-          let count = Number(mapping.count ?? 0);
-          let nextIdx = index;
-          let nextCount = count;
-          let targetUrl;
+          if (index < 0 || index >= targets.length) index = 0;
+          const target = targets[index];
+          const nextIndex = (index + 1) % targets.length;
 
-          if (mode === 'count') {
-            // 按次数：当前链接接待 threshold 次后切换到下一个
-            nextCount = count + 1;
-            if (nextCount >= threshold) {
-              nextCount = 0;
-              nextIdx = (index + 1) % targets.length;
-            }
-            targetUrl = targets[index];
-          } else {
-            // 随机：每次在所有链接中等概率随机选一个
-            nextIdx = Math.floor(Math.random() * targets.length);
-            nextCount = 0;
-            targetUrl = targets[nextIdx];
-          }
+          await DB.prepare('UPDATE mappings SET idx = ? WHERE path = ?')
+            .bind(nextIndex, path)
+            .run();
 
-          if (nextIdx !== index || nextCount !== count) {
-            await DB.prepare('UPDATE mappings SET idx = ?, count = ? WHERE path = ?')
-              .bind(nextIdx, nextCount, path)
-              .run();
-          }
-
-          return Response.redirect(targetUrl, 302);
+          return Response.redirect(target, 302);
         }
         return new Response('Not Found', { status: 404 });
       } catch (error) {
