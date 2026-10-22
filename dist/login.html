@@ -185,7 +185,7 @@
                         </svg>
                         登录成功
                     `;
-                    window.location.href = '/admin';
+                    window.location.href = '/admin.html';
                 } else {
                     const data = await response.json().catch(() => ({}));
                     error.querySelector('span').textContent = data.error || '密码错误，请重试';

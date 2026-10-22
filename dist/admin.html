@@ -412,10 +412,10 @@
                         </div>
                         <div>
                             <label for="newTarget" class="label">
-                                <span class="label-text">目标URL</span>
+                                <span class="label-text">目标URL（每行一个，访问时轮询跳转）</span>
                             </label>
-                            <input type="text" id="newTarget" placeholder="目标URL，例:https://x.com/xxx"
-                                class="input input-bordered w-full">
+                            <textarea id="newTarget" placeholder="目标URL，每行一个&#10;例:https://x.com/1&#10;https://x.com/2&#10;https://x.com/3"
+                                class="textarea textarea-bordered w-full h-24" style="resize:none; word-break:break-all;"></textarea>
                         </div>
                         <div>
                             <label for="newExpiry" class="label">
@@ -580,7 +580,7 @@
             // 添加初始认证检查
             checkAuth().then(isAuthenticated => {
                 if (!isAuthenticated) {
-                    window.location.href = '/login';
+                    window.location.href = '/login.html';
                     return;
                 }
                 // 初始化页面
@@ -700,7 +700,7 @@
             function setupErrorHandling() {
                 window.addEventListener('unhandledrejection', function (event) {
                     if (event.reason.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = '/login.html';
                     }
                 });
             }
@@ -956,7 +956,7 @@
                     const response = await fetch(`/api/mappings?page=${currentPage}&pageSize=${pageSize}`);
 
                     if (response.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = '/login.html';
                         return;
                     }
 
@@ -1056,7 +1056,7 @@
                     });
 
                     if (response.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = '/login.html';
                         return;
                     }
 
@@ -1089,7 +1089,7 @@
                             });
 
                             if (response.status === 401) {
-                                window.location.href = '/login';
+                                window.location.href = '/login.html';
                                 return;
                             }
 
@@ -1237,6 +1237,12 @@
             }
 
             // 修改创建短链二维码行的函数中的二维码按钮部分
+            // 获取一个映射的完整目标列表文本（多链接用换行分隔）
+            function targetText(m) {
+                if (m && Array.isArray(m.targets) && m.targets.length) return m.targets.join('\n');
+                return (m && m.target) ? m.target : '';
+            }
+
             function createMappingRow(path, mapping) {
                 const row = document.createElement('tr');
                 
@@ -1244,7 +1250,7 @@
                 row.dataset.originalData = JSON.stringify({
                     name: mapping.name || '',
                     path: path,
-                    target: mapping.target,
+                    target: targetText(mapping),
                     expiry: mapping.expiry || '',
                     enabled: mapping.enabled,
                     isWechat: mapping.isWechat,
@@ -1255,7 +1261,7 @@
                 const cellsData = [
                     { text: mapping.name || '-', data: mapping.name || '-' },
                     { text: path, data: path },
-                    { text: mapping.target, data: mapping.target },
+                    { text: targetText(mapping), data: targetText(mapping) },
                     { text: mapping.expiry || '永久有效', data: mapping.expiry || '' }
                 ];
 
@@ -1323,7 +1329,7 @@
                         // 切换到编辑模式
                         cells[0].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.name || ''}">`;
                         cells[1].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.path}">`;
-                        cells[2].innerHTML = `<textarea class="textarea textarea-bordered textarea-sm w-full h-24" style="resize:none; word-break:break-all;">${mappingData.target}</textarea>`;
+                        cells[2].innerHTML = `<textarea class="textarea textarea-bordered textarea-sm w-full h-24" style="resize:none; word-break:break-all;">${targetText(mappingData)}</textarea>`;
                         cells[3].innerHTML = `<input type="date" class="input input-bordered input-sm w-full" value="${mappingData.expiry || ''}">`;
                         
                         // 状态切换
@@ -1488,7 +1494,7 @@
                     });
 
                     if (response.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = '/login.html';
                         return;
                     }
 
@@ -1633,7 +1639,7 @@
                         return;
                     }
 
-                    window.location.href = '/login';
+                    window.location.href = '/login.html';
                 } catch (error) {
                     console.error('登出失败:', error);
                     showAlert('登出失败，请检查网络连接后重试');
@@ -1653,7 +1659,7 @@
                     const response = await fetch(`/api/expiring-mappings?page=${currentPage}&pageSize=${pageSize}`);
 
                     if (response.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = '/login.html';
                         return;
                     }
 
@@ -1693,6 +1699,7 @@
                         const row = createMappingRow(mapping.path, {
                             name: mapping.name,
                             target: mapping.target,
+                            targets: mapping.targets,
                             expiry: mapping.expiry,
                             enabled: mapping.enabled,
                             isWechat: mapping.isWechat,
