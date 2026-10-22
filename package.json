@@ -1,0 +1,20 @@
+{
+  "name": "serverless-qrcode-hub",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Cron triggered at http://localhost:8787/__scheduled?cron=*+*+*+*+*' && wrangler dev --ip 0.0.0.0 --env dev --test-scheduled",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "core-js-pure",
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  }
+}

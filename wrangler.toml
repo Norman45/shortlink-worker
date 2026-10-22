@@ -1,0 +1,24 @@
+name = "serverless-qrcode-hub"
+main = "index.js"
+compatibility_date = "2025-03-10"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qrcode_hub"
+# 注意：将下面的 id 替换为你自己拷贝的 D1 存储的 id 才能正常使用！
+database_id = "6aee8a5a-c482-4e6f-a4bd-11913351a189"
+
+[triggers]
+crons = ["0 2 */1 * *"]
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "qrcode_hub_dev"
+database_id = "1cfa1ef6-a076-410b-aa19-50f63411313c"
+
+[env.dev.triggers]
+crons = ["*/10 * * * * *"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
