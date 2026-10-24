@@ -25,6 +25,98 @@ function parseTargets(raw) {
   return String(raw).split(/[\r\n,]+/).map(t => t.trim()).filter(Boolean);
 }
 
+// HTML 转义：防止短链目标中的特殊字符破坏页面结构（XSS 防护）
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// 微信协议（weixin://）无法被浏览器直接打开，直接 302 会白屏，
+// 这里渲染一个引导中转页：点击按钮或 3 秒后自动尝试打开微信。
+function wechatInterstitialHtml(weixinUrl, name) {
+  // JSON 字符串形式安全嵌入 <script>，并将 < 转义为 \u003c 防止闭合 script 标签
+  const safeUrl = JSON.stringify(weixinUrl).replace(/</g, '\\u003c');
+  const linkText = escapeHtml(weixinUrl);
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<title>跳转中</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+*{padding:0;margin:0}
+@media (max-width:768px){
+  body{width:100%;height:100vh;background:#fff;overflow:hidden}
+}
+@media screen and (max-width:3000px) and (min-width:768px){
+  body{background:#fff;overflow:hidden;margin:0 auto}
+}
+.ssl_tips_container{display:flex;justify-content:center;padding:15px 0}
+.ssl_tips{display:flex;align-items:center}
+.ssl_logo{display:inline-block;width:22px;height:22px;margin-right:5px;border-radius:5px;vertical-align:middle;object-fit:contain}
+.ssl_text{font-size:14px;color:#999}
+.jump_gif{width:50%;margin:40px auto 0;text-align:center}
+.jump_gif img{width:100%;height:auto;display:block}
+.jump_text{text-align:center;font-size:16px;color:#666;margin-top:30px}
+.jump_button_tips{text-align:center;color:#ccc;margin-top:10px;font-size:15px}
+.jump_button{width:50%;height:40px;line-height:40px;text-align:center;color:#fff;background:#0ccf67;border-radius:15px;margin:20px auto 0;font-size:16px;animation:breathe 1s ease-in-out infinite;transform-origin:center}
+.a-jump{text-decoration:none;-webkit-tap-highlight-color:rgba(255,0,0,0)}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+</style>
+<meta name="description" content="">
+<meta name="referrer" content="no-referrer">
+</head>
+<body>
+ <div class="ssl_tips_container">
+   <div class="ssl_tips">
+     <img class="ssl_logo" src="/images/ssl.png" alt="SSL" />
+     <span class="ssl_text">本页面已启用SSL安全加密</span>
+   </div>
+ </div>
+ <div class="jump_gif">
+   <img src="/images/kuaishou-jumpwx.gif" alt="跳转示意" />
+ </div>
+ <div class="jump_text">正在自动跳转...</div>
+ <div class="jump_button_tips">如没有自动跳转请点击按钮</div>
+ <a href="${linkText}" id="jumpBtn" class="a-jump">
+   <div class="jump_button">点击跳转</div>
+ </a>
+<script>
+  (function () {
+    var weixinUrl = ${safeUrl};
+    function openWechat() {
+      try {
+        window.location.href = weixinUrl;
+      } catch (e) {}
+    }
+    var btn = document.getElementById('jumpBtn');
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        openWechat();
+      });
+    }
+    // 页面加载完成后自动执行跳转
+    function autoJump() {
+      openWechat();
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      autoJump();
+    } else {
+      window.addEventListener('load', autoJump);
+    }
+  })();
+</script>
+</body>
+</html>`;
+}
+
+
 // 数据库初始化
 async function initDatabase() {
   // 创建表
@@ -779,6 +871,17 @@ export default {
           await DB.prepare('UPDATE mappings SET idx = ? WHERE path = ?')
             .bind(nextIndex, path)
             .run();
+
+          // 微信协议链接：浏览器无法直接处理 weixin://，直接 302 会白屏，
+          // 改为返回引导中转页（点击按钮 / 3 秒自动尝试打开微信）
+          if (target.includes('weixin://')) {
+            return new Response(wechatInterstitialHtml(target, mapping.name), {
+              headers: {
+                'Content-Type': 'text/html;charset=UTF-8',
+                'Cache-Control': 'no-store'
+              }
+            });
+          }
 
           return Response.redirect(target, 302);
         }
