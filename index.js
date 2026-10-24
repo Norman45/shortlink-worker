@@ -25,6 +25,37 @@ function parseTargets(raw) {
   return String(raw).split(/[\r\n,]+/).map(t => t.trim()).filter(Boolean);
 }
 
+// 平台跳转示意图映射：URL 参数 from 的平台值 -> 对应图片
+const PLATFORM_JUMP_IMAGES = {
+  kuaishou: '/images/kuaishou-jumpwx.gif',
+  douyin: '/images/douyin-jumpwx.gif',
+  sms: '/images/sms-jumpwx.gif',
+  weibo: '/images/weibo-jumpwx.gif',
+  xhs: '/images/xhs-jumpwx.gif',
+  zhihu: '/images/zhihu-jumpwx.gif',
+  common: '/images/common-jumpwx.gif',
+};
+// 无参数访问默认使用快手跳转图
+const DEFAULT_JUMP_IMAGE = '/images/kuaishou-jumpwx.gif';
+
+// 隐蔽渠道编码：URL 参数 s 使用 axbX 形式，X 为平台字母（axbd=抖音、axbk=快手…）
+const SOURCE_CODE_TO_PLATFORM = {
+  d: 'douyin',
+  k: 'kuaishou',
+  s: 'sms',
+  w: 'weibo',
+  x: 'xhs',
+  z: 'zhihu',
+  c: 'common',
+};
+
+// 解析渠道编码，返回平台名；无法识别返回 null
+function parseSourceCode(value) {
+  if (!value) return null;
+  const v = String(value).trim().toLowerCase();
+  return SOURCE_CODE_TO_PLATFORM[v.slice(-1)] || null;
+}
+
 // HTML 转义：防止短链目标中的特殊字符破坏页面结构（XSS 防护）
 function escapeHtml(str) {
   return String(str ?? '')
@@ -37,7 +68,7 @@ function escapeHtml(str) {
 
 // 微信协议（weixin://）无法被浏览器直接打开，直接 302 会白屏，
 // 这里渲染一个引导中转页：点击按钮或 3 秒后自动尝试打开微信。
-function wechatInterstitialHtml(weixinUrl, name) {
+function wechatInterstitialHtml(weixinUrl, name, jumpImg) {
   // JSON 字符串形式安全嵌入 <script>，并将 < 转义为 \u003c 防止闭合 script 标签
   const safeUrl = JSON.stringify(weixinUrl).replace(/</g, '\\u003c');
   const linkText = escapeHtml(weixinUrl);
@@ -79,7 +110,7 @@ function wechatInterstitialHtml(weixinUrl, name) {
    </div>
  </div>
  <div class="jump_gif">
-   <img src="/images/kuaishou-jumpwx.gif" alt="跳转示意" />
+   <img src="${jumpImg}" alt="跳转示意" />
  </div>
  <div class="jump_text">正在自动跳转...</div>
  <div class="jump_button_tips">如没有自动跳转请点击按钮</div>
@@ -873,9 +904,13 @@ export default {
             .run();
 
           // 微信协议链接：浏览器无法直接处理 weixin://，直接 302 会白屏，
-          // 改为返回引导中转页（点击按钮 / 3 秒自动尝试打开微信）
+          // 改为返回引导中转页（点击按钮 / 页面加载完成自动尝试打开微信）
           if (target.includes('weixin://')) {
-            return new Response(wechatInterstitialHtml(target, mapping.name), {
+            // 平台图片：URL 参数 s（axbX 编码）决定，无参数/无法识别时使用默认图
+            const sourceCode = url.searchParams.get('s') || '';
+            const platform = parseSourceCode(sourceCode);
+            const jumpImage = (platform && PLATFORM_JUMP_IMAGES[platform]) || DEFAULT_JUMP_IMAGE;
+            return new Response(wechatInterstitialHtml(target, mapping.name, jumpImage), {
               headers: {
                 'Content-Type': 'text/html;charset=UTF-8',
                 'Cache-Control': 'no-store'
